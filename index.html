@@ -15,11 +15,20 @@
   <img id="ss" alt="" />
   <div id="err" style="display:none">Image not found.</div>
   <script>
-    const img = decodeURIComponent(new URLSearchParams(location.search).get("img") || "");
+    let img = decodeURIComponent(new URLSearchParams(location.search).get("img") || "");
+
     if (img) {
+      // Convert Google Drive download URL → embeddable thumbnail URL
+      const match = img.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (match) {
+        img = `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+      }
+
       const el = document.getElementById("ss");
-      const filename = img.split("/").pop();
-      el.onerror = () => { el.style.display="none"; document.getElementById("err").style.display="block"; };
+      el.onerror = () => {
+        el.style.display = "none";
+        document.getElementById("err").style.display = "block";
+      };
       el.src = img;
     } else {
       document.getElementById("err").style.display = "block";
