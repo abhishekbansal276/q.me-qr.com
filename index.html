@@ -20,7 +20,7 @@
       const el = document.getElementById("ss");
       const filename = img.split("/").pop();
       el.onerror = () => { el.style.display="none"; document.getElementById("err").style.display="block"; };
-      el.src = "/img-proxy/" + filename;
+      el.src = img;
     } else {
       document.getElementById("err").style.display = "block";
       document.getElementById("err").textContent = "No image specified.";
