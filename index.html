@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eForm-C Transit Pass Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --saffron:   #FF6B00;
+      --saffron-2: #FF8C00;
+      --green:     #138808;
+      --green-2:   #1aaa0a;
+      --navy:      #000080;
+      --gold:      #C8A84B;
+      --cream:     #FDF6E3;
+      --paper:     #FFFEF7;
+      --ink:       #1a1a2e;
+      --muted:     #6b6b7a;
+      --border:    #e2d9c4;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--cream);
+      font-family: 'Noto Sans', sans-serif;
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* ── Tricolour top bar ── */
+    .tricolour {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      height: 5px;
+    }
+    .tricolour div { flex: 1; }
+    .tricolour .s { background: var(--saffron); }
+    .tricolour .w { background: #fff; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+    .tricolour .g { background: var(--green); }
+
+    /* ── Header ── */
+    header {
+      margin-top: 5px;
+      padding: 18px 24px 14px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,128,.35);
+    }
+
+    .ashoka {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 3px var(--gold);
+      animation: spin-slow 12s linear infinite;
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .header-text { flex: 1; }
+    .header-text h1 {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: #fff;
+      letter-spacing: .04em;
+      line-height: 1.1;
+    }
+    .header-text p {
+      font-size: .72rem;
+      color: var(--gold);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .header-badge {
+      background: var(--saffron);
+      color: #fff;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: .72rem;
+      letter-spacing: .1em;
+      padding: 4px 10px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ── Utility bar ── */
+    .util-bar {
+      background: var(--paper);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .util-bar span {
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-right: auto;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: .82rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s, transform .1s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--navy); color: #fff; }
+    .btn-primary:hover { opacity: .88; }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--navy);
+      color: var(--navy);
+    }
+    .btn-outline:hover { background: var(--navy); color: #fff; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover { opacity: .88; }
+
+    /* ── Main viewer area ── */
+    .viewer {
+      min-height: calc(100vh - 130px);
+      padding: 30px 20px 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    /* ── Info card (shown before image loads or on error) ── */
+    .info-card {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--saffron);
+      border-radius: 6px;
+      padding: 20px 24px;
+      max-width: 520px;
+      width: 100%;
+      display: none;
+    }
+    .info-card.visible { display: block; }
+    .info-card h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .info-card p { font-size: .83rem; color: var(--muted); line-height: 1.7; }
+    .info-card .icon { font-size: 1.2rem; }
+
+    /* ── Loading skeleton ── */
+    .skeleton {
+      width: 100%;
+      max-width: 860px;
+      height: 420px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #e8e0cc 25%, #f5edd8 50%, #e8e0cc 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      display: none;
+    }
+    .skeleton.visible { display: block; }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Document frame ── */
+    .doc-frame {
+      width: 100%;
+      max-width: 860px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,.06),
+        0 0 0 1px rgba(0,0,128,.04);
+      overflow: hidden;
+      display: none;
+      animation: fadeUp .4s ease both;
+    }
+    .doc-frame.visible { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .doc-header {
+      background: var(--navy);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .doc-header span {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: .78rem;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .doc-header .label { color: var(--gold); }
+    .doc-header .tp    { color: #fff; }
+
+    .doc-img-wrap {
+      position: relative;
+      background: #f0ece2;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .doc-img {
+      width: 100%;
+      display: block;
+      cursor: zoom-in;
+      transition: transform .25s ease;
+    }
+    .doc-img.zoomed {
+      cursor: zoom-out;
+      transform: scale(1.6);
+      transform-origin: center top;
+    }
+
+    .zoom-hint {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      background: rgba(0,0,0,.55);
+      color: #fff;
+      font-size: .66rem;
+      letter-spacing: .06em;
+      padding: 3px 8px;
+      border-radius: 20px;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity .3s;
+    }
+    .zoom-hint.hidden { opacity: 0; }
+
+    .doc-footer {
+      background: var(--paper);
+      border-top: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .doc-footer .meta {
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+    .doc-footer .valid-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: .7rem;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: .07em;
+      color: var(--green);
+      text-transform: uppercase;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green-2);
+      animation: pulse 1.8s ease infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.5); opacity: .5; }
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 18px 20px;
+      border-top: 1px solid var(--border);
+      font-size: .7rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+    footer strong { color: var(--navy); }
+
+    /* ── Error state ── */
+    .error-card {
+      background: #fff5f5;
+      border: 1px solid #ffcdd2;
+      border-top: 3px solid #e53935;
+      border-radius: 6px;
+      padding: 20px 24px;
+      max-width: 520px;
+      width: 100%;
+      display: none;
+    }
+    .error-card.visible { display: block; }
+    .error-card h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      color: #c62828;
+      margin-bottom: 8px;
+    }
+    .error-card p { font-size: .83rem; color: #7f3838; line-height: 1.7; }
+
+    /* ── No-param landing ── */
+    .landing {
+      text-align: center;
+      max-width: 460px;
+      padding: 20px;
+      display: none;
+    }
+    .landing.visible { display: block; }
+    .landing .big-icon { font-size: 3rem; margin-bottom: 12px; }
+    .landing h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .landing p { font-size: .85rem; color: var(--muted); line-height: 1.8; }
+
+    @media (max-width: 600px) {
+      header { padding: 14px 16px; }
+      .header-text h1 { font-size: 1rem; }
+      .header-badge { display: none; }
+      .viewer { padding: 20px 12px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tricolour stripe -->
+  <div class="tricolour">
+    <div class="s"></div><div class="w"></div><div class="g"></div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="ashoka">⚙︎</div>
+    <div class="header-text">
+      <h1>Uttar Pradesh Directorate of Geology &amp; Mining</h1>
+      <p>eForm-C — Transit Pass Verification System</p>
+    </div>
+    <div class="header-badge">UP Mines</div>
+  </header>
+
+  <!-- Utility bar -->
+  <div class="util-bar">
+    <span id="util-label">Loading document…</span>
+    <button class="btn btn-outline" id="btn-zoom" onclick="toggleZoom()">🔍 Zoom</button>
+    <a  class="btn btn-green"  id="btn-download" href="#" download>⬇ Download</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 Print</button>
+  </div>
+
+  <!-- Main content -->
+  <main class="viewer">
+
+    <!-- Landing (no param) -->
+    <div class="landing" id="landing">
+      <div class="big-icon">📋</div>
+      <h2>No Transit Pass Provided</h2>
+      <p>Scan a valid eForm-C QR code to view the associated transit pass screenshot. This viewer is part of the UP Mines digital transit management system.</p>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div class="skeleton" id="skeleton"></div>
+
+    <!-- Info card (loading message) -->
+    <div class="info-card" id="info-card">
+      <h2><span class="icon">🔄</span> Fetching Document</h2>
+      <p>Retrieving the transit pass screenshot from the UP Mines server. Please wait…</p>
+    </div>
+
+    <!-- Error card -->
+    <div class="error-card" id="error-card">
+      <h2>⚠ Document Not Found</h2>
+      <p id="error-msg">The screenshot could not be loaded. The link may have expired or the server may be unreachable. Please contact the issuing authority.</p>
+    </div>
+
+    <!-- Document viewer -->
+    <div class="doc-frame" id="doc-frame">
+      <div class="doc-header">
+        <span class="label">eForm-C Transit Pass</span>
+        <span class="tp" id="doc-tp-num"></span>
+      </div>
+      <div class="doc-img-wrap">
+        <img class="doc-img" id="doc-img" src="" alt="Transit Pass Screenshot" />
+        <div class="zoom-hint" id="zoom-hint">Tap to zoom</div>
+      </div>
+      <div class="doc-footer">
+        <span class="meta" id="doc-meta">Loaded from UP Mines server</span>
+        <span class="valid-badge"><span class="dot"></span>Document Retrieved</span>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <strong>Government of Uttar Pradesh</strong> — Directorate of Geology &amp; Mining &nbsp;|&nbsp;
+    eForm-C Digital Transit Management &nbsp;|&nbsp; For official use only
+  </footer>
+
+  <script>
+    // ── Parse ?img= from URL ─────────────────────────────────────────────────
+    const params   = new URLSearchParams(window.location.search);
+    const imgParam = params.get("img");
+
+    const $  = id => document.getElementById(id);
+
+    function show(id)  { $(id).classList.add("visible"); }
+    function hide(id)  { $(id).classList.remove("visible"); }
+
+    // ── No parameter: show landing ───────────────────────────────────────────
+    if (!imgParam) {
+      show("landing");
+      $("util-label").textContent = "No document specified";
+      $("btn-download").style.display = "none";
+      $("btn-zoom").style.display     = "none";
+    } else {
+      // ── Has parameter: load image ──────────────────────────────────────────
+      const imgUrl = decodeURIComponent(imgParam);
+
+      // Extract TP number from filename: e.g. 3111230699026810767_20260227_123045.png
+      const filenameMatch = imgUrl.match(/\/([^\/]+)\.png$/i);
+      const filename      = filenameMatch ? filenameMatch[1] : "";
+      const tpMatch       = filename.match(/^(\d+)/);
+      const tpNum         = tpMatch ? tpMatch[1] : "—";
+
+      $("doc-tp-num").textContent = tpNum !== "—" ? `TP: ${tpNum}` : "";
+      $("btn-download").href      = imgUrl;
+      $("btn-download").setAttribute("download", filename + ".png");
+
+      // Show skeleton + info while loading
+      show("skeleton");
+      show("info-card");
+      $("util-label").textContent = "Loading transit pass…";
+
+      const img = $("doc-img");
+
+      img.onload = () => {
+        hide("skeleton");
+        hide("info-card");
+        show("doc-frame");
+        $("util-label").textContent = tpNum !== "—"
+          ? `Transit Pass — TP No. ${tpNum}`
+          : "Transit Pass Document";
+
+        // Auto-hide zoom hint after 3s
+        setTimeout(() => $("zoom-hint").classList.add("hidden"), 3000);
+
+        // Set meta timestamp from filename
+        const tsMatch = filename.match(/_(\d{8}_\d{6})$/);
+        if (tsMatch) {
+          const ts  = tsMatch[1];
+          const dt  = `${ts.slice(6,8)}/${ts.slice(4,6)}/${ts.slice(0,4)} ${ts.slice(9,11)}:${ts.slice(11,13)}`;
+          $("doc-meta").textContent = `Generated: ${dt}`;
+        }
+      };
+
+      img.onerror = () => {
+        hide("skeleton");
+        hide("info-card");
+        $("error-msg").textContent =
+          `Could not load: ${imgUrl}. The VPS server may be offline or the file does not exist.`;
+        show("error-card");
+        $("util-label").textContent = "Error loading document";
+      };
+
+      img.src = imgUrl;
+    }
+
+    // ── Zoom toggle ──────────────────────────────────────────────────────────
+    let zoomed = false;
+    function toggleZoom() {
+      const img  = $("doc-img");
+      zoomed     = !zoomed;
+      img.classList.toggle("zoomed", zoomed);
+      $("btn-zoom").textContent = zoomed ? "🔍 Reset" : "🔍 Zoom";
+    }
+
+    $("doc-img") && $("doc-img").addEventListener("click", toggleZoom);
+
+    // ── Print: hide chrome ───────────────────────────────────────────────────
+    window.addEventListener("beforeprint", () => {
+      if (zoomed) toggleZoom();
+    });
+  </script>
+</body>
+</html>
